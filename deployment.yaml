@@ -1,0 +1,43 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: worker-deployment
+  namespace: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker-deployment
+  template:
+    metadata:
+      labels:
+        app: worker-deployment
+    spec:
+      containers:
+        - name: worker
+          image: josofd/event-driven-with-keda-kafka-confluent-library
+          imagePullPolicy: Always
+          env:
+          - name: Kafka__BootstrapServers
+            value: edh-kafka-bootstrap.ingestion:9092
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker-scaled-object
+  namespace: worker
+spec:
+  scaleTargetRef:
+    name: worker-deployment
+  pollingInterval: 15
+  cooldownPeriod:  30
+  minReplicaCount: 0
+  maxReplicaCount: 10   
+  triggers:
+  - type: kafka
+    metadata:
+      bootstrapServers: edh-kafka-bootstrap.ingestion:9092
+      consumerGroup: keda
+      topic: keda-worker
+      lagThreshold: '5'
+      offsetResetPolicy: earliest
